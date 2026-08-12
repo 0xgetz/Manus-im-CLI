@@ -12,7 +12,7 @@
   </p>
 
   <p>
-    <img src="https://github.com/0xgetz/Manus-im-CLI/actions/workflows/ci.yml/badge.svg" alt="CI Status" />
+    <img src="https://github.com/0xgetz/Manus-im-CLI/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI Status" />
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License" />
     <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python Version" />
     <img src="https://img.shields.io/badge/version-0.1.0-orange.svg" alt="Version" />
