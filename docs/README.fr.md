@@ -58,6 +58,30 @@ pipx install .
 pip install -e .
 ```
 
+### Option C : Installation sur Android via Termux
+Vous pouvez exécuter `Manus-im-CLI` directement sur votre appareil Android en utilisant [Termux](https://termux.dev/). Suivez ces étapes :
+
+1. **Installez Termux** depuis [F-Droid](https://f-droid.org/packages/com.termux/) (Recommandé) ou Google Play Store.
+2. **Mettez à jour les paquets et installez Python et Git** :
+   ```bash
+   pkg update && pkg upgrade -y
+   pkg install python git -y
+   ```
+3. **Clonez le dépôt** :
+   ```bash
+   git clone https://github.com/0xgetz/Manus-im-CLI.git
+   cd Manus-im-CLI
+   ```
+4. **Installez les dépendances et la CLI** :
+   ```bash
+   pip install --upgrade pip
+   pip install .
+   ```
+5. **Vérifiez l'installation** :
+   ```bash
+   manus --help
+   ```
+
 ---
 
 ## 🚀 Démarrage Rapide

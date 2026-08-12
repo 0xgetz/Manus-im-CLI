@@ -58,6 +58,30 @@ pipx install .
 pip install -e .
 ```
 
+### 方式 C：在 Android Termux 中安装
+您可以使用 [Termux](https://termux.dev/) 直接在 Android 设备上运行 `Manus-im-CLI`。请按照以下步骤操作：
+
+1. 从 [F-Droid](https://f-droid.org/packages/com.termux/)（推荐）或 Google Play 商店安装 **Termux**。
+2. **更新软件包并安装 Python 与 Git**：
+   ```bash
+   pkg update && pkg upgrade -y
+   pkg install python git -y
+   ```
+3. **克隆仓库**：
+   ```bash
+   git clone https://github.com/0xgetz/Manus-im-CLI.git
+   cd Manus-im-CLI
+   ```
+4. **安装依赖与 CLI**：
+   ```bash
+   pip install --upgrade pip
+   pip install .
+   ```
+5. **验证安装**：
+   ```bash
+   manus --help
+   ```
+
 ---
 
 ## 🚀 快速开始
