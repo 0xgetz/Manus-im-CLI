@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "manus-cli"
-version = "0.1.0"
+version = "1.0.1"
 description = "A full-featured CLI client for the Manus AI agent platform"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,6 +27,7 @@ dependencies = [
     "httpx>=0.24.0",
     "pydantic>=2.0.0",
     "tomli-w>=1.0.0",
+    "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +36,7 @@ dev = [
     "respx>=0.20.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
+    "pip-audit>=2.7.0",
 ]
 
 [project.scripts]
@@ -50,5 +52,7 @@ target-version = ["py310", "py311", "py312"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 ignore = ["E501"]

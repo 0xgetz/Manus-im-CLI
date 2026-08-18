@@ -164,15 +164,21 @@ def task_watch(
 
 
 def _watch_task_loop(api: TasksAPI, client, task_id: str, json_output: bool):
+    """Watch task events using a cursor so that new messages are not skipped."""
     print(f"Watching task {task_id} (Ctrl+C to exit watch mode)...")
-    seen_event_ids = set()
+    seen_event_ids: set[str] = set()
+    starting_after: str | None = None
+    latest_status: str | None = None
 
     while True:
         try:
-            res = api.list_messages(task_id=task_id, order="asc", limit=50)
+            res = api.list_messages(
+                task_id=task_id,
+                order="asc",
+                limit=50,
+                starting_after=starting_after,
+            )
             events = res.get("data", [])
-
-            latest_status = "running"
             waiting_details = None
 
             for ev in events:
@@ -181,13 +187,14 @@ def _watch_task_loop(api: TasksAPI, client, task_id: str, json_output: bool):
                     continue
                 if ev_id:
                     seen_event_ids.add(ev_id)
+                    starting_after = ev_id
 
                 ev_type = ev.get("type")
                 if ev_type == "status_update":
-                    su = ev.get("status_update", {})
-                    latest_status = su.get("agent_status", "running")
+                    status_update = ev.get("status_update", {})
+                    latest_status = status_update.get("agent_status", latest_status)
                     if latest_status == "waiting":
-                        waiting_details = su.get("status_detail", {})
+                        waiting_details = status_update.get("status_detail", {})
                 elif ev_type == "assistant_message":
                     content = ev.get("assistant_message", {}).get("content", "")
                     if json_output:
@@ -204,21 +211,20 @@ def _watch_task_loop(api: TasksAPI, client, task_id: str, json_output: bool):
             if latest_status == "stopped":
                 print("\n[+] Task completed successfully.")
                 break
-            elif latest_status == "error":
+            if latest_status == "error":
                 print("\n[!] Task failed with error status.")
                 break
-            elif latest_status == "waiting" and waiting_details:
+            if latest_status == "waiting" and waiting_details:
                 _handle_waiting_event(api, client, task_id, waiting_details)
-                # Reset seen or continue after handling
-            else:
-                # Still running, poll after interval
-                time.sleep(3.0)
+
+            # Use a short delay even after handling an event to avoid a busy polling loop.
+            time.sleep(3.0)
 
         except KeyboardInterrupt:
             print("\nExiting watch mode.")
             break
-        except Exception as e:
-            print_error(str(e))
+        except Exception as exc:
+            print_error(str(exc))
             time.sleep(5.0)
 
 
@@ -229,6 +235,10 @@ def _handle_waiting_event(api: TasksAPI, client, task_id: str, detail: dict):
     schema = detail.get("confirm_input_schema", {})
 
     console.print(f"\n[bold yellow][WAITING] {event_type}: {description}[/bold yellow]")
+
+    if not event_id:
+        print_error("Waiting event is missing an event ID; refusing to confirm it.")
+        return
 
     if event_type == "messageAskUser":
         # Reply with task.sendMessage
@@ -258,13 +268,20 @@ def _handle_waiting_event(api: TasksAPI, client, task_id: str, detail: dict):
             api.confirm_action(task_id, event_id, {"action": "skip"})
         else:
             client_id = choice
-            if choice.isdigit() and int(choice) < len(clients):
-                client_id = clients[int(choice)].get("client_id")
+            if choice.isdigit():
+                index = int(choice)
+                if index >= len(clients):
+                    print_error("Browser index is out of range; no selection was sent.")
+                    return
+                client_id = clients[index].get("client_id")
+            if not client_id:
+                print_error("Selected browser does not include a client ID; no selection was sent.")
+                return
             api.confirm_action(task_id, event_id, {"action": "select", "client_id": client_id})
         print("Browser selection sent.")
     else:
         # General confirm action
-        accept = Confirm.ask("Do you want to accept/confirm this action?", default=True)
+        accept = Confirm.ask("Do you want to accept/confirm this action?", default=False)
         input_payload: dict = {"accept": accept}
 
         # Check schema properties for extra fields like always_allow or global_allow
@@ -309,7 +326,7 @@ def task_confirm(
     ctx: typer.Context,
     task_id: str = typer.Argument(..., help="Task ID."),
     event_id: str = typer.Argument(..., help="Event ID to confirm."),
-    accept: bool = typer.Option(True, "--accept/--reject", help="Accept or reject the action."),
+    accept: bool = typer.Option(False, "--accept/--reject", help="Accept or reject the action."),
     input_json: str | None = typer.Option(None, "--input", help="Custom JSON input string."),
 ):
     """Manually confirm or reject a pending task action."""

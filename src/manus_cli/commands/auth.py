@@ -12,7 +12,14 @@ app = typer.Typer(help="Authentication commands.")
 
 @app.command("login")
 def login(
-    api_key: str = typer.Option(None, "--api-key", help="API key to store."),
+    ctx: typer.Context,
+    api_key: str | None = typer.Option(None, "--api-key", help="API key to store."),
+    base_url: str | None = typer.Option(None, "--base-url", help="Override API base URL."),
+    allow_custom_base_url: bool = typer.Option(
+        False,
+        "--allow-custom-base-url",
+        help="Allow a trusted custom HTTPS API endpoint to receive API credentials.",
+    ),
 ):
     """Interactively or via flag store Manus API key securely."""
     key = api_key
@@ -23,18 +30,25 @@ def login(
         print_error("API key cannot be empty.")
         raise typer.Exit(code=2)
 
-    # Test API key by making a request
-    base_url = get_base_url()
-    client = APIClient(base_url=base_url, api_key=key)
     try:
-        # Test against usage available credits or similar endpoint
+        if base_url:
+            resolved_base_url = get_base_url(base_url, allow_custom=allow_custom_base_url)
+        else:
+            resolved_base_url = ctx.obj["client"].base_url
+    except (KeyError, ValueError) as exc:
+        print_error(str(exc))
+        raise typer.Exit(code=2) from exc
+
+    # Test API key only after validating the destination endpoint.
+    client = APIClient(base_url=resolved_base_url, api_key=key)
+    try:
         client.get("/v2/usage.availableCredits")
-    except Exception as e:
-        print_error(f"Failed to validate API key: {e}")
-        raise typer.Exit(code=3)
+    except Exception as exc:
+        print_error(f"Failed to validate API key: {exc}")
+        raise typer.Exit(code=3) from exc
 
     set_config_value("api_key", key)
-    print_success("API key successfully saved to ~/.config/manus/config.toml (permissions 0600).")
+    print_success("API key saved to ~/.config/manus/config.toml (permissions 0600).")
 
 
 @app.command("whoami")
@@ -53,6 +67,6 @@ def whoami(
         else:
             print_success("Authenticated successfully!")
             print_json(res)
-    except Exception as e:
-        print_error(str(e))
-        raise typer.Exit(code=3)
+    except Exception as exc:
+        print_error(str(exc))
+        raise typer.Exit(code=3) from exc
