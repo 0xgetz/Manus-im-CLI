@@ -1,8 +1,16 @@
 """Config commands."""
 
-import typer
+import sys
 
-from manus_cli.config import get_config_value, load_config, set_config_value
+import typer
+from rich.prompt import Confirm
+
+from manus_cli.config import (
+    get_config_value,
+    is_sensitive_config_key,
+    load_config,
+    set_config_value,
+)
 from manus_cli.output import print_error, print_json, print_success
 
 app = typer.Typer(help="Configuration management commands.")
@@ -15,26 +23,43 @@ def config_set(
 ):
     """Set a configuration value."""
     set_config_value(key, value)
-    print_success(f"Set {key} = {value}")
+    rendered_value = "[REDACTED]" if is_sensitive_config_key(key) else value
+    print_success(f"Set {key} = {rendered_value}")
 
 
 @app.command("get")
 def config_get(
     key: str = typer.Argument(..., help="Configuration key."),
+    show_secret: bool = typer.Option(
+        False,
+        "--show-secret",
+        help="Display a sensitive value after explicit confirmation in an interactive terminal.",
+    ),
 ):
-    """Get a configuration value."""
+    """Get a configuration value while redacting secrets by default."""
     val = get_config_value(key)
-    if val is not None:
-        print(val)
-    else:
+    if val is None:
         print_error(f"Configuration key '{key}' not found.")
         raise typer.Exit(code=2)
+
+    if is_sensitive_config_key(key):
+        if not show_secret:
+            print("[REDACTED]")
+            return
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            print_error("Refusing to reveal a secret outside an interactive terminal.")
+            raise typer.Exit(code=2)
+        if not Confirm.ask("Display this secret in the terminal?", default=False):
+            raise typer.Exit(code=0)
+
+    print(val)
 
 
 @app.command("list")
 def config_list():
-    """List all configuration values (redacting api_key)."""
+    """List all configuration values while redacting sensitive values."""
     cfg = load_config()
-    if "api_key" in cfg:
-        cfg["api_key"] = "[REDACTED]"
+    for key in cfg:
+        if is_sensitive_config_key(key):
+            cfg[key] = "[REDACTED]"
     print_json(cfg)
